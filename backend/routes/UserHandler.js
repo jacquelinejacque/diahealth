@@ -5,13 +5,14 @@ import UserLogic from "../logic/UserLogic.js";
 import authenticate from "../middleware/AuthMiddleware.js";
 var UserHandler = Router();
 
-UserHandler.get("/list",authenticate, function (req, res) {
-  UserLogic.list(function (result) {
-    res.json(result);
+UserHandler.get("/list", function (req, res) {
+  const params= req.query;
+  UserLogic.list(params, (result) =>{
+    res.status(result.status).json(result);
   });
 });
 
-UserHandler.post("/create",/*authenticate,*/ function (req, res) {
+UserHandler.post("/create", function (req, res) {
  
   UserLogic.create(req.body, function (result) {
     res.json(result);
@@ -24,19 +25,14 @@ UserHandler.post("/login", function (req, res) {
   });
 });
 
-UserHandler.post("/update",authenticate, function (req, res) {
-  UserLogic.update(req.body, function (result) {
-    res.json(result);
+UserHandler.post('/update', (req, res) => {
+  UserLogic.update(req.body, (result) => {
+    res.status(result.status).json(result);
   });
 });
-UserHandler.get("/details/:userId",authenticate, function (req, res) {
+UserHandler.get("/details/:userId", function (req, res) {
   UserLogic.findById(req.params.userId, function (result) {
     res.json(result);
-  });
-});
-UserHandler.post("/password/change",authenticate, (req, res) => {
-  UserLogic.changePassword(req.body, (results) => {
-    res.json(results);
   });
 });
  

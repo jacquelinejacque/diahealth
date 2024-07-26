@@ -7,53 +7,37 @@ import Utils from "../lib/Utils.js";
 
 class UserLogic {
     static list(params, callback) {
-        var filter = {}
-        if (params.userType) filter['userType'] = params.userType
-        async.waterfall(
-            [
-                function (done) {
-                    DatabaseManager.user
-                        .count({ where: filter })
-                        .then((res) => {
-                            done(null, res);
-                        })
-                        .catch((err) => {
-                            done(err);
-                        });
-                },
-                function (totalRecords, done) {
-                    DatabaseManager.user
-                        .findAll({
-                            attributes: ["userID", "shopID", "name", "phone", "email", "expiry", "sysproUser", "sysproPassword", "userType"],
-                            where: filter
-                        })
-                        .then((res) => {
-                            done(null, totalRecords, res);
-                        })
-                        .catch((err) => {
-                            done(err);
-                        });
-                },
-            ],
-            function (err, totalRecords, data) {
-                if (err)
-                    return callback({
-                        status: Consts.httpCodeSeverError,
-                        message: "Failed to fetch users",
-                        error: err,
-                        data: [],
-                        recordsTotal: 0,
-                        recordsFiltered: 0,
-                    });
+        const filter = {};
+        if (params.userType) filter['userType'] = params.userType;
 
-                return callback({
-                    status: Consts.httpCodeSuccess,
-                    data: data,
-                    recordsTotal: totalRecords,
-                    recordsFiltered: totalRecords,
-                });
-            }
-        );
+        Promise.all([
+        // Count total records
+        DatabaseManager.user.count({ where: filter }),
+        // Fetch user details
+        DatabaseManager.user.findAll({
+            attributes: ['userID', 'name', 'phone', 'email', 'password', 'dateOfBirth', 'gender', 'medicalDegree', 'specialization', 'licenseNumber', 'jobTitle', 'userType'],
+            where: filter,
+        }),
+        ])
+        .then(([totalRecords, users]) => {
+            callback({
+            status: Consts.httpCodeSuccess,
+            data: users,
+            recordsTotal: totalRecords,
+            recordsFiltered: totalRecords,
+            });
+        })
+        .catch((err) => {
+            console.error('Error fetching users:', err.message);
+            callback({
+            status: Consts.httpCodeServerError,
+            message: 'Failed to fetch users',
+            error: err.message,
+            data: [],
+            recordsTotal: 0,
+            recordsFiltered: 0,
+            });
+        });
     }
 
     static login(body, callback) {
@@ -158,27 +142,57 @@ class UserLogic {
         );
     }
 
+
     static create(body, callback) {
         async.waterfall(
             [
                 function (done) {
-
-
                     if (Utils.isEmpty(body.name)) {
-                        done("Name cannot be empty")
-                        return
-                    }
-                    if (Utils.isEmpty(body.phone)) {
-                        done("Phone number is required")
-                        return
-                    }
-                    if (Utils.isEmpty(body.email)) {
-                        done("Email is required")
-                        return
+                        done("Name cannot be empty");
+                        return;
                     }
                     if (Utils.isEmpty(body.password)) {
-                        done("Password is required")
-                        return
+                        done("Password is required");
+                        return;
+                    }
+                    if (Utils.isEmpty(body.phone)) {
+                        done("Phone number is required");
+                        return;
+                    }
+                    if (Utils.isEmpty(body.email)) {
+                        done("Email is required");
+                        return;
+                    }
+                    if (body.userType === 'patient') {
+                        if (Utils.isEmpty(body.dateOfBirth)) {
+                            done("Date of Birth is required");
+                            return;
+                        }
+                        if (Utils.isEmpty(body.gender)) {
+                            done("Gender is required");
+                            return;
+                        }
+                    } else if (body.userType === 'doctor') {
+                        if (Utils.isEmpty(body.medicalDegree)) {
+                            done("Medical Degree is required");
+                            return;
+                        }
+                        if (Utils.isEmpty(body.specialization)) {
+                            done("Specialization is required");
+                            return;
+                        }
+                        if (Utils.isEmpty(body.licenseNumber)) {
+                            done("License Number is required");
+                            return;
+                        }
+                    } else if (body.userType === 'admin') {
+                        if (Utils.isEmpty(body.jobTitle)) {
+                            done("Job Title is required");
+                            return;
+                        }
+                    } else {
+                        done("Invalid user type");
+                        return;
                     }
 
                     DatabaseManager.user
@@ -199,44 +213,24 @@ class UserLogic {
                         });
                 },
                 function (done) {
-                    if (body.userType == 'attendant') {
-                        if (Utils.isEmpty(body.shop)) {
-                            done("Shop is required")
-                            return
-                        }
-                        DatabaseManager.shop
-                            .findOne({
-                                where: {
-                                    shopID: body.shop,
-                                },
-                            })
-                            .then((res) => {
-                                if (!res) {
-                                    done("The shop provided is not known");
-                                    return;
-                                }
-                                done(null);
-                            })
-                            .catch((err) => {
-                                done(err);
-                            });
-                        return
-                    }
-                    done(null);
-                },
-                function (done) {
-                    //
                     var params = {
-                        sysproUser: body.sysproUser,
-                        sysproPassword: body.sysproPassword,
                         name: body.name,
-                        phone: body.phone,
-                        email: body.email,
-                        userType: body.userType,
                         password: bcrypt.hashSync(body.password, 8),
+                        phone : body.phone,
+                        email : body.email,
+                        userType: body.userType
                     }
-                    if (body.userType == 'attendant')
-                        params['shopID'] = body.shop
+
+                    if (body.userType === 'patient') {
+                        params.dateOfBirth = body.dateOfBirth;
+                        params.gender = body.gender;
+                    } else if (body.userType === 'doctor') {
+                        params.medicalDegree = body.medicalDegree;
+                        params.specialization = body.specialization;
+                        params.licenseNumber = body.licenseNumber;
+                    } else if (body.userType === 'admin') {
+                        params.jobTitle = body.jobTitle;
+                    }
 
                     DatabaseManager.user
                         .create(params)
@@ -251,7 +245,7 @@ class UserLogic {
             function (err, data) {
                 if (err)
                     return callback({
-                        status: Consts.httpCodeSeverError,
+                        status: Consts.httpCodeServerError,
                         message: "Failed to create user",
                         error: err,
                     });
@@ -273,7 +267,7 @@ class UserLogic {
                             where: {
                                 userID: userId,
                             },
-                            attributes: ["userID", "name", "phone", "email", "session", "expiry", "sysproUser", "sysproPassword", "shopID", "userType"],
+                            attributes: ['userID', 'name', 'phone', 'email', 'password', 'dateOfBirth', 'gender', 'medicalDegree', 'specialization', 'licenseNumber', 'jobTitle', 'userType'],
                         })
                         .then((res) => {
                             done(null, res);
@@ -301,176 +295,99 @@ class UserLogic {
     }
 
     static update(body, callback) {
-
-        async.waterfall(
-            [
-                function (done) {
-
-                    DatabaseManager.user
-                        .findOne({
-                            attributes: ["userID", "name", "phone", "email", "session", "expiry", "sysproUser", "sysproPassword", "shopID", "userType"],
-                            where: {
-                                userID: body.userId,
-                            },
-                        })
-                        .then((res) => {
-
-                            if (Utils.isEmpty(res)) {
-                                done("User not found");
-                                return;
-                            }
-                            done(null);
-                        })
-                        .catch((err) => {
-                            done(err);
-                        });
-                },
-                function (done) {
-                    if (body.userType == 'attendant') {
-                        if (Utils.isEmpty(body.shop)) {
-                            done("Shop is required")
-                            return
+        async.waterfall([
+            function (done) {
+        
+                DatabaseManager.user
+                    .findOne({
+                        attributes: [
+                            'userID', 'name', 'phone', 'email', 'password', 'dateOfBirth', 'gender', 'medicalDegree', 'specialization', 'licenseNumber', 'jobTitle', 'userType'
+                        ],
+                        where: {
+                            userID: body.userID,
+                        },
+                    })
+                    .then((res) => {
+                        if (Utils.isEmpty(res)) {
+                            done({ status: Consts.httpCodeFileNotFound, message: 'User not found' });
+                            return;
                         }
-                        DatabaseManager.shop
-                            .findOne({
-                                where: {
-                                    shopID: body.shop,
-                                },
-                            })
-                            .then((res) => {
-                                if (!res) {
-                                    done("The shop provided is not known");
-                                    return;
-                                }
-                                done(null);
-                            })
-                            .catch((err) => {
-                                done(err);
-                            });
-                        return
-                    }
-                    done(null);
-                },
-                function (done) {
-                    var params = {
-                        name: body.name,
-                        phone: body.phone,
-                        email: body.email,
-                        userType: body.userType,
-                        sysproPassword: body.sysproPassword,
-                        sysproUser: body.sysproUser
-                    }
-
-                    if (body.userType == 'attendant')
-                        params['shopID'] = body.shop
-
-                    DatabaseManager.user
-                        .update(
-                            params,
-                            { where: { userID: body.userId } }
-                        )
-                        .then((res) => {
-                            done(null, res);
-                        })
-                        .catch((err) => {
-                            done(err);
-                        });
-                },
-            ],
-            function (err, data) {
-                if (err)
-                    return callback({
-                        status: Consts.httpCodeSeverError,
-                        message: "Failed to update user",
-                        error: err,
+                        done(null, res);
+                    })
+                    .catch((err) => {
+                        done({ status: Consts.httpCodeSeverError, message: err.message });
                     });
+            },
+            function (user, done) {
+                const params = {
+                    name: body.name,
+                    phone: body.phone,
+                    email: body.email,
+                    userType: body.userType,
+                };
 
+                if (body.userType === 'patient') {
+                    if (Utils.isEmpty(body.dateOfBirth)) {
+                        done({ status: Consts.httpCodeSeverError, message: 'Date of birth is required for patient' });
+                        return;
+                    }
+                    if (Utils.isEmpty(body.gender)) {
+                        done({ status: Consts.httpCodeSeverError, message: 'Gender is required for patient' });
+                        return;
+                    }
+                    params.dateOfBirth = body.dateOfBirth;
+                    params.gender = body.gender;
+                } else if (body.userType === 'doctor') {
+                    if (Utils.isEmpty(body.medicalDegree)) {
+                        done({ status: Consts.httpCodeSeverError, message: 'Medical degree is required for doctor' });
+                        return;
+                    }
+                    if (Utils.isEmpty(body.specialization)) {
+                        done({ status: Consts.httpCodeSeverError, message: 'Specialization is required for doctor' });
+                        return;
+                    }
+                    if (Utils.isEmpty(body.licenseNumber)) {
+                        done({ status: Consts.httpCodeSeverError, message: 'License number is required for doctor' });
+                        return;
+                    }
+                    params.medicalDegree = body.medicalDegree;
+                    params.specialization = body.specialization;
+                    params.licenseNumber = body.licenseNumber;
+                } else if (body.userType === 'admin') {
+                    if (Utils.isEmpty(body.jobTitle)) {
+                        done({ status: Consts.httpCodeSeverError, message: 'Job title is required for admin' });
+                        return;
+                    }
+                    params.jobTitle = body.jobTitle;
+                }
+                done(null, params);
+            },
+            function (params, done) {
+                DatabaseManager.user
+                    .update(params, { where: { userID: body.userID } })
+                    .then((res) => {
+                        done(null, res);
+                    })
+                    .catch((err) => {
+                        done({ status: Consts.httpCodeSeverError, message: err.message });
+                    });
+            },
+        ],
+        function (err, data) {
+            if (err) {
                 return callback({
-                    status: Consts.httpCodeSuccess,
-                    message: "User updated successfully",
+                    status: err.status || Consts.httpCodeSeverError,
+                    message: err.message || 'Failed to update user',
+                    error: err,
                 });
             }
-        );
+
+            return callback({
+                status: Consts.httpCodeSuccess,
+                message: 'User updated successfully',
+            });
+        });
     }
-
-    static changePassword(body, callback) {
-        async.waterfall(
-            [
-                function (done) {
-                    if (Utils.isEmpty(body.userId)) {
-                        done("UserId is required");
-                        return;
-                    }
-
-                    if (Utils.isEmpty(body.oldPassword)) {
-                        done("Old password is required");
-                        return;
-                    }
-
-                    if (Utils.isEmpty(body.password)) {
-                        done("Please provide new password");
-                        return;
-                    }
-
-                    done(null);
-                },
-
-                function (done) {
-                    DatabaseManager.user
-                        .findOne({
-                            attributes: ["userID", "name", "phone", "email", "session", "expiry", "sysproUser", "sysproPassword", "shopID", "userType"],
-                            where: { userID: body.userId },
-                        })
-                        .then((res) => {
-                            if (!res) {
-                                done("User not found");
-                                return;
-                            }
-                            done(null, res);
-                        })
-                        .catch((error) => {
-                            console.error("Failed to retrieve user:", error);
-                            done(`User not found:, ${error.message}`, null);
-                        });
-                },
-
-                function (user, done) {
-                    if (!bcrypt.compareSync(body.oldPassword, user.password)) {
-                        done("Incorrect Password!", null);
-                        return;
-                    }
-                    DatabaseManager.user
-                        .update(
-                            {
-                                password: bcrypt.hashSync(body.password, 8),
-                            },
-                            { where: { userID: body.userId } }
-                        )
-                        .then((res) => {
-                            done(null, "Password updated succesfully");
-                        })
-                        .catch((error) => {
-                            console.error("Error updating password:", error);
-                            done(`Error updating password ${error.message}`, null);
-                        });
-                },
-            ],
-            function (err, data) {
-                if (err) {
-                    return callback({
-                        status: Consts.httpCodeSeverError,
-                        message: err,
-                    });
-                } else {
-                    return callback({
-                        status: Consts.httpCodeSuccess,
-                        message: data,
-                    });
-                }
-            }
-        );
-    }
-
 
     static resetPassword(body, callback) {
         async.waterfall(

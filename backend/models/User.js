@@ -10,23 +10,54 @@ class User {
       },
       name: {
         type: DataTypes.STRING,
-      },
-      phone: {
-        type: DataTypes.STRING,
-      },
-      email: {
-        type: DataTypes.STRING,
         allowNull: false,
-        unique: "email",
       },
       password: {
         type: DataTypes.STRING,
+        allowNull: false,
+      },
+      phone: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      email: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        validate: {
+          isEmail: true,
+        },
       },
       userType: {
-        type: DataTypes.ENUM,
+        type: DataTypes.ENUM('patient', 'doctor', 'admin'),
         allowNull: false,
-        values: ['doctor', 'patient'],  
-        defaultValue: 'patient'
+      },
+      // Patient fields
+      dateOfBirth: {
+        type: DataTypes.DATEONLY,
+        allowNull: true,
+      },
+      gender: {
+        type: DataTypes.ENUM('male', 'female', 'other'),
+        allowNull: true,
+      },
+
+      // Doctor fields
+      medicalDegree: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      specialization: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      licenseNumber: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      // Admin fields
+      jobTitle: {
+        type: DataTypes.STRING,
+        allowNull: true,
       },
     });
   }
