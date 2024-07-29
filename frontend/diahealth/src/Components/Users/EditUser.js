@@ -18,12 +18,14 @@ const EditUser = ({ userId }) => {
   });
 
   const [errors, setErrors] = useState({});
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     // Fetch user details from the server using the userId
     const fetchUserData = async () => {
       try {
         const response = await fetch(`http://localhost:4600/api/v1/users/details/${userId}`);
+        if (!response.ok) throw new Error('User not found');
         const data = await response.json();
         setUser({
           name: data.name,
@@ -53,55 +55,59 @@ const EditUser = ({ userId }) => {
     }));
   };
 
-const handleSubmit = async (event) => {
-  event.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
-  // Basic validation
-  let formErrors = {};
-  if (!user.name) formErrors.name = 'Name is required';
-  if (!user.email) formErrors.email = 'Email is required';
-  if (!user.phone) formErrors.phone = 'Phone number is required';
-  if (user.userType === 'admin' && !user.jobTitle) formErrors.jobTitle = 'Job Title is required';
-  if (user.userType === 'doctor') {
-    if (!user.medicalDegree) formErrors.medicalDegree = 'Medical Degree is required';
-    if (!user.specialization) formErrors.specialization = 'Specialization is required';
-    if (!user.licenseNumber) formErrors.licenseNumber = 'License Number is required';
-  }
-  if (user.userType === 'patient') {
-    if (!user.dateOfBirth) formErrors.dateOfBirth = 'Date of Birth is required';
-    if (!user.gender) formErrors.gender = 'Gender is required';
-  }
-  setErrors(formErrors);
-
-  if (Object.keys(formErrors).length > 0) return; // Stop if there are errors
-
-  // Prepare request payload
-  const payload = {
-    userID: userId,  // Ensure userId is included here
-    ...user,
-  };
-
-  // Send the updated user data to the server
-  try {
-    const response = await fetch(`http://localhost:4600/api/v1/users/update`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json();
-    if (response.ok) {
-      console.log('User updated successfully:', data);
-    } else {
-      console.error('Error updating user:', data);
+    // Basic validation
+    let formErrors = {};
+    if (!user.name) formErrors.name = 'Name is required';
+    if (!user.email) formErrors.email = 'Email is required';
+    if (!user.phone) formErrors.phone = 'Phone number is required';
+    if (user.userType === 'admin' && !user.jobTitle) formErrors.jobTitle = 'Job Title is required';
+    if (user.userType === 'doctor') {
+      if (!user.medicalDegree) formErrors.medicalDegree = 'Medical Degree is required';
+      if (!user.specialization) formErrors.specialization = 'Specialization is required';
+      if (!user.licenseNumber) formErrors.licenseNumber = 'License Number is required';
     }
-  } catch (error) {
-    console.error('Error updating user:', error);
-  }
-};
+    if (user.userType === 'patient') {
+      if (!user.dateOfBirth) formErrors.dateOfBirth = 'Date of Birth is required';
+      if (!user.gender) formErrors.gender = 'Gender is required';
+    }
+    setErrors(formErrors);
 
+    if (Object.keys(formErrors).length > 0) return; // Stop if there are errors
+
+    // Prepare request payload
+    const payload = {
+      userID: userId,  // Ensure userId is included here
+      ...user,
+    };
+    console.log('Payload:', payload);
+
+
+    // Send the updated user data to the server
+    try {
+      const response = await fetch(`http://localhost:4600/api/v1/users/update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setMessage('User details updated successfully'); // Set success message
+        console.log('User updated successfully:', data);
+      } else {
+        setMessage('Error updating user'); // Set error message
+        console.error('Error updating user:', data);
+      }
+    } catch (error) {
+      setMessage('Error updating user'); // Set error message
+      console.error('Error updating user:', error);
+    }
+  };
 
   return (
     <div className="new-user-container">
@@ -233,6 +239,7 @@ const handleSubmit = async (event) => {
         )}
         <button type="submit">Update User</button>
       </form>
+      {message && <div className="message">{message}</div>}
     </div>
   );
 };

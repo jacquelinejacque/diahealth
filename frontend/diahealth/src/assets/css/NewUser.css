@@ -46,3 +46,21 @@
   color: red;
   font-size: 0.9em;
 }
+
+
+.popup {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 10px;
+  background-color: #4caf50;
+  color: white;
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  transition: opacity 0.5s;
+}
+
+.popup p {
+  margin: 0;
+}
