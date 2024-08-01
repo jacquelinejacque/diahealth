@@ -59,6 +59,12 @@ class User {
         type: DataTypes.STRING,
         allowNull: true,
       },
+      status: {
+        type: DataTypes.ENUM,
+        allowNull: false,
+        values: ['active', 'deleted'],
+        defaultValue: 'active'
+      },
     });
   }
 }

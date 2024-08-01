@@ -30,6 +30,14 @@ UserHandler.post('/update', (req, res) => {
     res.status(result.status).json(result);
   });
 });
+
+UserHandler.delete('/delete/:userID', (req, res) => {
+    const body = { userID: req.params.userID };
+    UserLogic.deleteUser(body, (result) => {
+        res.status(result.status).json(result);
+    });
+});
+
 UserHandler.get("/details/:userId", function (req, res) {
   UserLogic.findById(req.params.userId, function (result) {
     res.json(result);

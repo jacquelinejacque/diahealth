@@ -140,120 +140,118 @@ class UserLogic {
     }
 
 
+
     static create(body, callback) {
-        async.waterfall(
-            [
-                function (done) {
-                    if (Utils.isEmpty(body.name)) {
-                        done("Name cannot be empty");
+        async.waterfall([
+            function (done) {
+                if (Utils.isEmpty(body.name)) {
+                    done({ status: Consts.httpCodeBadRequest, message: "Name cannot be empty" });
+                    return;
+                }
+                if (Utils.isEmpty(body.password)) {
+                    done({ status: Consts.httpCodeBadRequest, message: "Password is required" });
+                    return;
+                }
+                if (Utils.isEmpty(body.phone)) {
+                    done({ status: Consts.httpCodeBadRequest, message: "Phone number is required" });
+                    return;
+                }
+                if (Utils.isEmpty(body.email)) {
+                    done({ status: Consts.httpCodeBadRequest, message: "Email is required" });
+                    return;
+                }
+                if (body.userType === 'patient') {
+                    if (Utils.isEmpty(body.dateOfBirth)) {
+                        done({ status: Consts.httpCodeBadRequest, message: "Date of Birth is required" });
                         return;
                     }
-                    if (Utils.isEmpty(body.password)) {
-                        done("Password is required");
+                    if (Utils.isEmpty(body.gender)) {
+                        done({ status: Consts.httpCodeBadRequest, message: "Gender is required" });
                         return;
                     }
-                    if (Utils.isEmpty(body.phone)) {
-                        done("Phone number is required");
+                } else if (body.userType === 'doctor') {
+                    if (Utils.isEmpty(body.medicalDegree)) {
+                        done({ status: Consts.httpCodeBadRequest, message: "Medical Degree is required" });
                         return;
                     }
-                    if (Utils.isEmpty(body.email)) {
-                        done("Email is required");
+                    if (Utils.isEmpty(body.specialization)) {
+                        done({ status: Consts.httpCodeBadRequest, message: "Specialization is required" });
                         return;
                     }
-                    if (body.userType === 'patient') {
-                        if (Utils.isEmpty(body.dateOfBirth)) {
-                            done("Date of Birth is required");
-                            return;
-                        }
-                        if (Utils.isEmpty(body.gender)) {
-                            done("Gender is required");
-                            return;
-                        }
-                    } else if (body.userType === 'doctor') {
-                        if (Utils.isEmpty(body.medicalDegree)) {
-                            done("Medical Degree is required");
-                            return;
-                        }
-                        if (Utils.isEmpty(body.specialization)) {
-                            done("Specialization is required");
-                            return;
-                        }
-                        if (Utils.isEmpty(body.licenseNumber)) {
-                            done("License Number is required");
-                            return;
-                        }
-                    } else if (body.userType === 'admin') {
-                        if (Utils.isEmpty(body.jobTitle)) {
-                            done("Job Title is required");
-                            return;
-                        }
-                    } else {
-                        done("Invalid user type");
+                    if (Utils.isEmpty(body.licenseNumber)) {
+                        done({ status: Consts.httpCodeBadRequest, message: "License Number is required" });
                         return;
                     }
+                } else if (body.userType === 'admin') {
+                    if (Utils.isEmpty(body.jobTitle)) {
+                        done({ status: Consts.httpCodeBadRequest, message: "Job Title is required" });
+                        return;
+                    }
+                } else {
+                    done({ status: Consts.httpCodeBadRequest, message: "Invalid user type" });
+                    return;
+                }
 
-                    DatabaseManager.user
-                        .findOne({
-                            where: {
-                                email: body.email
-                            },
-                        })
-                        .then((res) => {
-                            if (res != undefined) {
-                                done("User with similar details already exists");
-                                return;
-                            }
-                            done(null);
-                        })
-                        .catch((err) => {
-                            done(err);
-                        });
-                },
-                function (done) {
-                    var params = {
-                        name: body.name,
-                        password: bcrypt.hashSync(body.password, 8),
-                        phone : body.phone,
-                        email : body.email,
-                        userType: body.userType
-                    }
-
-                    if (body.userType === 'patient') {
-                        params.dateOfBirth = body.dateOfBirth;
-                        params.gender = body.gender;
-                    } else if (body.userType === 'doctor') {
-                        params.medicalDegree = body.medicalDegree;
-                        params.specialization = body.specialization;
-                        params.licenseNumber = body.licenseNumber;
-                    } else if (body.userType === 'admin') {
-                        params.jobTitle = body.jobTitle;
-                    }
-
-                    DatabaseManager.user
-                        .create(params)
-                        .then((res) => {
-                            done(null, res);
-                        })
-                        .catch((err) => {
-                            done(err);
-                        });
-                },
-            ],
-            function (err, data) {
-                if (err)
-                    return callback({
-                        status: Consts.httpCodeServerError,
-                        message: "Failed to create user",
-                        error: err,
+                DatabaseManager.user
+                    .findOne({
+                        where: {
+                            email: body.email
+                        },
+                    })
+                    .then((res) => {
+                        if (res != undefined) {
+                            done({ status: Consts.httpCodeBadRequest, message: "User with this email already exists" });
+                            return;
+                        }
+                        done(null);
+                    })
+                    .catch((err) => {
+                        done({ status: Consts.httpCodeServerError, message: "Sequelize error", error: err });
                     });
+            },
+            function (done) {
+                var params = {
+                    name: body.name,
+                    password: bcrypt.hashSync(body.password, 8),
+                    phone: body.phone,
+                    email: body.email,
+                    userType: body.userType
+                };
 
-                return callback({
-                    status: Consts.httpCodeSuccess,
-                    message: "User created successfully",
-                });
+                if (body.userType === 'patient') {
+                    params.dateOfBirth = body.dateOfBirth;
+                    params.gender = body.gender;
+                } else if (body.userType === 'doctor') {
+                    params.medicalDegree = body.medicalDegree;
+                    params.specialization = body.specialization;
+                    params.licenseNumber = body.licenseNumber;
+                } else if (body.userType === 'admin') {
+                    params.jobTitle = body.jobTitle;
+                }
+
+                DatabaseManager.user
+                    .create(params)
+                    .then((res) => {
+                        done(null, res);
+                    })
+                    .catch((err) => {
+                        done({ status: Consts.httpCodeServerError, message: "Sequelize error", error: err });
+                    });
             }
-        );
+        ], function (err, data) {
+            if (err) {
+                return callback(err);
+            }
+
+            return callback({
+                status: Consts.httpCodeSuccess,
+                message: "User created successfully",
+                data: data
+            });
+        });
     }
+
+ 
 
     static findById(userId, callback) {
         async.waterfall(
@@ -317,7 +315,7 @@ class UserLogic {
                         done(null, res);
                     })
                     .catch((err) => {
-                        done({ status: Consts.httpCodeSequelizeError, message: 'Sequelize error' });
+                        done({ status: Consts.httpCodeServerError, message: 'Error updating a user' });
                         return;
                     });
             },
@@ -342,7 +340,7 @@ class UserLogic {
                         done(null, { status: Consts.httpCodeOK, message: 'User details updated successfully' });
                     })
                     .catch((err) => {
-                        done({ status: Consts.httpCodeSequelizeError, message: 'Sequelize error' });
+                        done({ status: Consts.httpCodeServerError, message: 'Error updating a user' });
                     });
             }
         ], function (err, result) {
@@ -350,6 +348,97 @@ class UserLogic {
         });
     }
 
+    static deleteUser(body, callback) {
+        async.waterfall([
+            function (done) {
+                if (!body.userID) {
+                    done({ status: Consts.httpCodeBadRequest, message: 'UserID is required' });
+                    return;
+                }
+
+                DatabaseManager.user
+                    .findOne({
+                        attributes: [
+                            'userID', 'status'
+                        ],
+                        where: {
+                            userID: body.userID,
+                        },
+                    })
+                    .then((res) => {
+                        if (Utils.isEmpty(res)) {
+                            done({ status: Consts.httpCodeFileNotFound, message: 'User not found' });
+                            return;
+                        }
+                        done(null, res);
+                    })
+                    .catch((err) => {
+                        done({ status: Consts.httpCodeServerError, message: 'Sequelize error' });
+                    });
+            },
+
+            function (data, done) {
+                const dataToUpdate = {
+                    status: 'deleted',
+                };
+
+                data.update(dataToUpdate)
+                    .then(() => {
+                        done(null, { status: Consts.httpCodeSuccess, message: 'User successfully deleted' });
+                    })
+                    .catch((err) => {
+                        done({ status: Consts.httpCodeServerError, message: 'Sequelize error' });
+                    });
+            }
+        ], function (err, result) {
+            callback(err || result);
+        });
+    }static deleteUser(body, callback) {
+        async.waterfall([
+            function (done) {
+                if (!body.userID) {
+                    done({ status: Consts.httpCodeBadRequest, message: 'UserID is required' });
+                    return;
+                }
+
+                DatabaseManager.user
+                    .findOne({
+                        attributes: [
+                            'userID', 'status'
+                        ],
+                        where: {
+                            userID: body.userID,
+                        },
+                    })
+                    .then((res) => {
+                        if (Utils.isEmpty(res)) {
+                            done({ status: Consts.httpCodeFileNotFound, message: 'User not found' });
+                            return;
+                        }
+                        done(null, res);
+                    })
+                    .catch((err) => {
+                        done({ status: Consts.httpCodeServerError, message: 'Sequelize error' });
+                    });
+            },
+
+            function (data, done) {
+                const dataToUpdate = {
+                    status: 'deleted',
+                };
+
+                data.update(dataToUpdate)
+                    .then(() => {
+                        done(null, { status: Consts.httpCodeSuccess, message: 'User successfully deleted' });
+                    })
+                    .catch((err) => {
+                        done({ status: Consts.httpCodeServerError, message: 'Sequelize error' });
+                    });
+            }
+        ], function (err, result) {
+            callback(err || result);
+        });
+    }
 
 
     static resetPassword(body, callback) {
